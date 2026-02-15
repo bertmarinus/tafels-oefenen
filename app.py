@@ -352,32 +352,19 @@ elif st.session_state.fase == 'oefenen':
             st.markdown(f"<div class='feedback-bad'>{feedback_text}</div>", unsafe_allow_html=True)
         
         st.markdown("")
-        st.markdown("<p style='text-align: center; color: #7F8C8D;'>Volgende som komt zo...</p>", unsafe_allow_html=True)
         
-        # JavaScript om na 1.5 seconden door te gaan
-        st.markdown("""
-            <script>
-            setTimeout(function() {
-                // Simuleer een klik op een onzichtbare knop
-                const buttons = window.parent.document.querySelectorAll('button');
-                for (let btn of buttons) {
-                    if (btn.textContent.includes('Volgende')) {
-                        btn.click();
-                        break;
-                    }
-                }
-            }, 1500);
-            </script>
-        """, unsafe_allow_html=True)
-        
-        # Onzichtbare knop voor JavaScript
-        if st.button("Volgende", key="auto_next", type="primary", use_container_width=True):
-            volgende_som_actie()
-            st.rerun()
+        # Simpele form met Enter ondersteuning
+        with st.form(key=f"next_form_{st.session_state.get('som_counter', 0)}"):
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                submitted = st.form_submit_button("➡️ Volgende (druk Enter)", type="primary", use_container_width=True)
+            
+            if submitted:
+                volgende_som_actie()
+                st.rerun()
     else:
-        # Antwoord invoer met number_input voor Enter support
-        # Maak form voor Enter ondersteuning - clear_on_submit=False zodat waarde blijft
-        with st.form(key=f"antwoord_form_{st.session_state.get('som_counter', 0)}", clear_on_submit=False):
+        # Antwoord invoer met form
+        with st.form(key=f"antwoord_form_{st.session_state.get('som_counter', 0)}"):
             antwoord = st.number_input(
                 "Jouw antwoord:",
                 min_value=0,
@@ -389,33 +376,24 @@ elif st.session_state.fase == 'oefenen':
                 key=f"num_input_{st.session_state.get('som_counter', 0)}"
             )
             
-            # Submit button (wordt getriggerd bij Enter)
-            submitted = st.form_submit_button("✅ Controleer", type="primary", use_container_width=True)
+            # Submit button
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                submitted = st.form_submit_button("✅ Controleer (Enter)", type="primary", use_container_width=True)
             
             if submitted and antwoord is not None:
                 controleer_antwoord(str(int(antwoord)))
-                # Na 1.5 seconden automatisch naar volgende som
                 st.rerun()
+            elif submitted and antwoord is None:
+                st.warning("⚠️ Vul eerst een antwoord in!")
         
         # Stop knop buiten de form
-        if st.button("⏹ Stop", key="stop_btn", use_container_width=True):
-            st.session_state.fase = 'einde'
-            st.session_state.volledig_geleerd = False
-            st.rerun()
-        
-        # JavaScript voor auto-focus
-        st.markdown("""
-            <script>
-            setTimeout(function() {
-                const inputs = window.parent.document.querySelectorAll('input[type="number"]');
-                if (inputs.length > 0) {
-                    const lastInput = inputs[inputs.length - 1];
-                    lastInput.focus();
-                    lastInput.select();
-                }
-            }, 100);
-            </script>
-        """, unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("⏹ Stop", key="stop_btn", use_container_width=True):
+                st.session_state.fase = 'einde'
+                st.session_state.volledig_geleerd = False
+                st.rerun()
 
 
 # EIND SCHERM
