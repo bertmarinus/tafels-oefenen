@@ -30,6 +30,15 @@ st.markdown("""
         border-radius: 15px;
         margin: 10px 0;
     }
+    .tafel-button {
+        display: inline-block;
+        margin: 5px;
+    }
+    div[data-testid="stNumberInput"] input {
+        font-size: 60px !important;
+        text-align: center;
+        height: 100px;
+    }
     .big-font {
         font-size: 60px !important;
         font-weight: bold;
@@ -141,7 +150,7 @@ def initialiseer_sommen():
     """Maak lijst van alle sommen voor geselecteerde tafels"""
     st.session_state.alle_sommen = []
     for tafel in st.session_state.geselecteerde_tafels:
-        for i in range(1, 13):
+        for i in range(1, 11):  # 1 t/m 10 (was 13 voor 1 t/m 12)
             st.session_state.alle_sommen.append((i, tafel))
     
     random.shuffle(st.session_state.alle_sommen)
@@ -254,38 +263,52 @@ def volgende_som_actie():
 if st.session_state.fase == 'start':
     laad_statistieken()
     
+    # Initialiseer geselecteerde tafels lijst
+    if 'temp_geselecteerde_tafels' not in st.session_state:
+        st.session_state.temp_geselecteerde_tafels = []
+    
     st.markdown("# 🎯 Tafels Oefenen 🎯")
     st.markdown("---")
     
     st.markdown("### Welke tafels wil je oefenen?")
-    st.markdown("Typ de getallen gescheiden door komma's")
-    st.markdown("*Bijvoorbeeld: 3,6,7*")
+    st.markdown("*Klik op de tafels die je wilt oefenen*")
+    st.markdown("")
     
-    tafel_input = st.text_input(
-        "Tafels (1 t/m 12):",
-        placeholder="3,6,7",
-        key="tafel_invoer",
-        label_visibility="collapsed"
-    )
+    # Maak 3 rijen van 4 knoppen
+    for row in range(3):
+        cols = st.columns(4)
+        for col_idx, col in enumerate(cols):
+            tafel_num = row * 4 + col_idx + 1
+            with col:
+                # Check of deze tafel al geselecteerd is
+                is_selected = tafel_num in st.session_state.temp_geselecteerde_tafels
+                button_label = f"{'✓ ' if is_selected else ''}Tafel {tafel_num}"
+                
+                if st.button(button_label, key=f"tafel_{tafel_num}", 
+                           type="primary" if is_selected else "secondary"):
+                    # Toggle selectie
+                    if tafel_num in st.session_state.temp_geselecteerde_tafels:
+                        st.session_state.temp_geselecteerde_tafels.remove(tafel_num)
+                    else:
+                        st.session_state.temp_geselecteerde_tafels.append(tafel_num)
+                    st.rerun()
+    
+    st.markdown("---")
+    
+    # Toon geselecteerde tafels
+    if st.session_state.temp_geselecteerde_tafels:
+        st.markdown(f"**Geselecteerd:** {', '.join(map(str, sorted(st.session_state.temp_geselecteerde_tafels)))}")
+    else:
+        st.markdown("*Geen tafels geselecteerd*")
     
     st.markdown("")
     
-    if st.button("🚀 Start Oefenen!", type="primary"):
-        try:
-            tafels = [int(x.strip()) for x in tafel_input.split(',')]
-            
-            if not tafels:
-                st.error("❌ Voer minstens één tafel in!")
-            elif any(t < 1 or t > 12 for t in tafels):
-                st.error("❌ Kies alleen tafels van 1 t/m 12!")
-            else:
-                st.session_state.geselecteerde_tafels = tafels
-                initialiseer_sommen()
-                st.session_state.huidige_som = get_volgende_som()
-                st.session_state.fase = 'oefenen'
-                st.rerun()
-        except ValueError:
-            st.error("❌ Ongeldige invoer! Gebruik alleen getallen en komma's.\n\nVoorbeeld: 3,6,7")
+    if st.button("🚀 Start Oefenen!", type="primary", disabled=len(st.session_state.temp_geselecteerde_tafels) == 0):
+        st.session_state.geselecteerde_tafels = st.session_state.temp_geselecteerde_tafels.copy()
+        initialiseer_sommen()
+        st.session_state.huidige_som = get_volgende_som()
+        st.session_state.fase = 'oefenen'
+        st.rerun()
     
     st.markdown("---")
     st.markdown("##### 📊 Je totale statistieken:")
@@ -327,44 +350,65 @@ elif st.session_state.fase == 'oefenen':
         
         st.markdown("")
         
-        if st.button("➡️ Volgende Som", type="primary", key="volgende_btn"):
-            volgende_som_actie()
-            st.rerun()
-    else:
-        # Antwoord invoer - gebruik een unieke key die niet reset
-        antwoord = st.text_input(
-            "Jouw antwoord:",
-            value="",
-            placeholder="Type je antwoord hier...",
-            key=f"antwoord_input_{st.session_state.get('som_counter', 0)}",
-            label_visibility="collapsed"
-        )
+        # Form voor Enter ondersteuning bij Volgende
+        with st.form(key=f"volgende_form_{st.session_state.get('som_counter', 0)}"):
+            submitted = st.form_submit_button("➡️ Volgende Som (druk Enter)", type="primary", use_container_width=True)
+            if submitted:
+                volgende_som_actie()
+                st.rerun()
         
-        # JavaScript om focus te behouden op mobiel
+        # JavaScript voor auto-focus op form
         st.markdown("""
             <script>
-            // Auto-focus op het input veld
-            const input = window.parent.document.querySelector('input[type="text"]');
-            if (input) {
-                input.focus();
-                // Voorkom dat toetsenbord sluit op mobiel
-                input.addEventListener('blur', function(e) {
-                    setTimeout(() => input.focus(), 10);
-                });
-            }
+            setTimeout(function() {
+                const buttons = window.parent.document.querySelectorAll('button[kind="formSubmit"]');
+                if (buttons.length > 0) {
+                    buttons[buttons.length - 1].focus();
+                }
+            }, 100);
             </script>
         """, unsafe_allow_html=True)
+    else:
+        # Antwoord invoer met number_input voor Enter support
+        # Maak form voor Enter ondersteuning
+        with st.form(key=f"antwoord_form_{st.session_state.get('som_counter', 0)}", clear_on_submit=True):
+            antwoord = st.number_input(
+                "Jouw antwoord:",
+                min_value=0,
+                max_value=999,
+                value=None,
+                step=1,
+                placeholder="Type je antwoord...",
+                label_visibility="collapsed",
+                key=f"num_input_{st.session_state.get('som_counter', 0)}"
+            )
+            
+            # Submit button (wordt getriggerd bij Enter)
+            submitted = st.form_submit_button("✅ Controleer", type="primary", use_container_width=True)
+            
+            if submitted and antwoord is not None:
+                controleer_antwoord(str(int(antwoord)))
+                st.rerun()
         
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            if st.button("✅ Controleer", type="primary", key="check_btn"):
-                controleer_antwoord(antwoord)
-                st.rerun()
-        with col2:
-            if st.button("⏹ Stop", key="stop_btn"):
-                st.session_state.fase = 'einde'
-                st.session_state.volledig_geleerd = False
-                st.rerun()
+        # Stop knop buiten de form
+        if st.button("⏹ Stop", key="stop_btn", use_container_width=True):
+            st.session_state.fase = 'einde'
+            st.session_state.volledig_geleerd = False
+            st.rerun()
+        
+        # JavaScript voor auto-focus
+        st.markdown("""
+            <script>
+            setTimeout(function() {
+                const inputs = window.parent.document.querySelectorAll('input[type="number"]');
+                if (inputs.length > 0) {
+                    const lastInput = inputs[inputs.length - 1];
+                    lastInput.focus();
+                    lastInput.select();
+                }
+            }, 100);
+            </script>
+        """, unsafe_allow_html=True)
 
 
 # EIND SCHERM
