@@ -39,6 +39,9 @@ st.markdown("""
         text-align: center;
         height: 100px;
     }
+    div[data-testid="stNumberInput"] input::placeholder {
+        font-size: 24px !important;
+    }
     .big-font {
         font-size: 60px !important;
         font-weight: bold;
@@ -349,36 +352,39 @@ elif st.session_state.fase == 'oefenen':
             st.markdown(f"<div class='feedback-bad'>{feedback_text}</div>", unsafe_allow_html=True)
         
         st.markdown("")
+        st.markdown("<p style='text-align: center; color: #7F8C8D;'>Volgende som komt zo...</p>", unsafe_allow_html=True)
         
-        # Form voor Enter ondersteuning bij Volgende
-        with st.form(key=f"volgende_form_{st.session_state.get('som_counter', 0)}"):
-            submitted = st.form_submit_button("➡️ Volgende Som (druk Enter)", type="primary", use_container_width=True)
-            if submitted:
-                volgende_som_actie()
-                st.rerun()
-        
-        # JavaScript voor auto-focus op form
+        # JavaScript om na 1.5 seconden door te gaan
         st.markdown("""
             <script>
             setTimeout(function() {
-                const buttons = window.parent.document.querySelectorAll('button[kind="formSubmit"]');
-                if (buttons.length > 0) {
-                    buttons[buttons.length - 1].focus();
+                // Simuleer een klik op een onzichtbare knop
+                const buttons = window.parent.document.querySelectorAll('button');
+                for (let btn of buttons) {
+                    if (btn.textContent.includes('Volgende')) {
+                        btn.click();
+                        break;
+                    }
                 }
-            }, 100);
+            }, 1500);
             </script>
         """, unsafe_allow_html=True)
+        
+        # Onzichtbare knop voor JavaScript
+        if st.button("Volgende", key="auto_next", type="primary", use_container_width=True):
+            volgende_som_actie()
+            st.rerun()
     else:
         # Antwoord invoer met number_input voor Enter support
-        # Maak form voor Enter ondersteuning
-        with st.form(key=f"antwoord_form_{st.session_state.get('som_counter', 0)}", clear_on_submit=True):
+        # Maak form voor Enter ondersteuning - clear_on_submit=False zodat waarde blijft
+        with st.form(key=f"antwoord_form_{st.session_state.get('som_counter', 0)}", clear_on_submit=False):
             antwoord = st.number_input(
                 "Jouw antwoord:",
                 min_value=0,
                 max_value=999,
                 value=None,
                 step=1,
-                placeholder="Type je antwoord...",
+                placeholder="...",
                 label_visibility="collapsed",
                 key=f"num_input_{st.session_state.get('som_counter', 0)}"
             )
@@ -388,6 +394,7 @@ elif st.session_state.fase == 'oefenen':
             
             if submitted and antwoord is not None:
                 controleer_antwoord(str(int(antwoord)))
+                # Na 1.5 seconden automatisch naar volgende som
                 st.rerun()
         
         # Stop knop buiten de form
